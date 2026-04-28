@@ -1,0 +1,10 @@
+Options -Indexes
+
+RewriteEngine On
+
+# kalau file/folder ada → langsung akses
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# hilangkan .php
+RewriteRule ^([a-zA-Z0-9-/]+)$ $1.php [L]

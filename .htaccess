@@ -1,0 +1,9 @@
+Options -Indexes
+
+RewriteEngine On
+
+# Arahkan root ke app/public
+RewriteRule ^$ app/public/ [L]
+
+# Forward semua request ke public
+RewriteRule (.*) app/public/$1 [L]
