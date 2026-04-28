@@ -1,0 +1,19 @@
+# ENV
+.env
+
+# Logs
+*.log
+
+# Temp
+*.tmp
+*.cache
+
+# OS
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+
+uploads/
+vendor/
