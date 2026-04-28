@@ -6,8 +6,14 @@
  * ========================================
  */
 
-// Base URL project (WAJIB SESUAIKAN)
-define('BASE_URL', '/simonika/');
+// AUTO DETECT BASE URL
+$host = $_SERVER['HTTP_HOST'] ?? '';
+
+if (strpos($host, 'localhost') !== false) {
+    define('BASE_URL', '/simonika/');
+} else {
+    define('BASE_URL', '/');
+}
 
 
 /**
@@ -16,10 +22,8 @@ define('BASE_URL', '/simonika/');
  * ========================================
  */
 
-// Timezone
 date_default_timezone_set('Asia/Jakarta');
 
-// Environment (development / production)
 define('APP_ENV', 'development');
 
 
@@ -45,25 +49,16 @@ if (APP_ENV === 'development') {
  * ========================================
  */
 
-/**
- * Generate URL
- */
 function url($path = '')
 {
     return BASE_URL . ltrim($path, '/');
 }
 
-/**
- * Asset helper (images, css, js)
- */
 function asset($path = '')
 {
     return BASE_URL . 'assets/' . ltrim($path, '/');
 }
 
-/**
- * Redirect helper
- */
 function redirect($path)
 {
     header("Location: " . url($path));
