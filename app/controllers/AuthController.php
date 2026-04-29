@@ -20,8 +20,10 @@ function handleAuth($conn)
 
                 if ($res['role'] === 'admin') {
                     header("Location: dashboard-admin.php");
-                } else {
+                } elseif ($res['role'] === 'operator') {
                     header("Location: dashboard-operator.php");
+                } else {
+                    header("Location: dashboard-viewer.php");
                 }
                 exit();
             }

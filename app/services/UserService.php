@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../helpers/log.php';
 
 function getAllOperators($conn)
 {
@@ -20,7 +21,7 @@ function createUser($conn, $data)
     $username = $data['username'];
     $password = password_hash($data['password'], PASSWORD_DEFAULT);
     $role = $data['role'];
-    $kelurahan = $data['kelurahan'];
+    $kelurahan = ($data['role'] === 'viewer') ? null : $data['kelurahan'];
 
     $stmt = $conn->prepare("
         INSERT INTO users (username, password, role, kelurahan)
@@ -28,6 +29,7 @@ function createUser($conn, $data)
     ");
     $stmt->bind_param("ssss", $username, $password, $role, $kelurahan);
     $stmt->execute();
+    log_activity($conn, $_SESSION['username'], "Menambah user: $username ($role)");
 }
 
 function updateUser($conn, $data)
@@ -35,7 +37,8 @@ function updateUser($conn, $data)
     $id = $data['id'];
     $username = $data['username'];
     $role = $data['role'];
-    $kelurahan = $data['kelurahan'];
+
+    $kelurahan = ($role === 'viewer') ? null : $data['kelurahan'];
 
     if (!empty($data['password'])) {
 
@@ -55,11 +58,24 @@ function updateUser($conn, $data)
     }
 
     $stmt->execute();
+    log_activity($conn, $_SESSION['username'], "Update user: $username ($role)");
 }
 
 function deleteUser($conn, $id)
 {
+    $stmt_get = $conn->prepare("SELECT username, role FROM users WHERE id=?");
+    $stmt_get->bind_param("i", $id);
+    $stmt_get->execute();
+    $user = $stmt_get->get_result()->fetch_assoc();
+
+    // delete
     $stmt = $conn->prepare("DELETE FROM users WHERE id=?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
+
+    log_activity(
+        $conn,
+        $_SESSION['username'],
+        "Menghapus user: " . $user['username'] . " (" . $user['role'] . ")"
+    );
 }

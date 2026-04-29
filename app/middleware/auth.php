@@ -6,3 +6,11 @@ if (!isset($_SESSION['username'])) {
     header("Location: login.php");
     exit();
 }
+
+function checkRole($roles = [])
+{
+    if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], $roles)) {
+        header("Location: login.php");
+        exit();
+    }
+}

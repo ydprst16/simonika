@@ -11,6 +11,10 @@ if (!isset($_SESSION['role'])) {
     header("Location: login.php");
     exit();
 }
+if ($_SESSION['role'] === 'viewer') {
+    header("Location: dashboard-viewer.php");
+    exit();
+}
 
 // ================= PARAM =================
 $kelurahan = $_GET['kelurahan'] ?? '';
