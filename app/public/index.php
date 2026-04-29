@@ -150,7 +150,7 @@ $images = getGaleriDummy();
             <a href="#tentang">Tentang</a>
             <a href="#statistik">Statistik</a>
             <a href="#galeri">Galeri</a>
-            <a href="<?= BASE_URL ?>login" class="font-semibold text-[var(--primary)]">Login</a>
+            <a href="<?= BASE_URL ?>login.php" class="font-semibold text-[var(--primary)]">Login</a>
         </div>
     </header>
 
@@ -172,7 +172,7 @@ $images = getGaleriDummy();
                 akurat, dan berkelanjutan oleh Badan Pusat Statistik Kota Dumai dalam Pembinaan Desa Cinta Statistik.
             </p>
 
-            <a href="<?= BASE_URL ?>login"
+            <a href="<?= BASE_URL ?>login.php"
                 class="btn-primary text-white px-8 py-4 rounded-lg shadow-md transition duration-300 hover:scale-105 inline-block">
                 Masuk ke Sistem
             </a>
