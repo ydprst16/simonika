@@ -5,13 +5,12 @@ require_once __DIR__ . '/../config/conn.php';
 require_once __DIR__ . '/../middleware/auth.php';
 require_once __DIR__ . '/../controllers/AdminController.php';
 
-// 🔐 AUTH
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.php");
     exit();
 }
 
-// 📦 AMBIL DATA DARI CONTROLLER
+
 $result = getDashboardAdmin($conn);
 
 $data = $result['data'];

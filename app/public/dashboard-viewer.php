@@ -3,26 +3,72 @@ session_start();
 
 require_once __DIR__ . '/../config/conn.php';
 require_once __DIR__ . '/../middleware/auth.php';
-require_once __DIR__ . '/../services/DashboardService.php';
 
+// 🔐 hanya viewer
 if ($_SESSION['role'] !== 'viewer') {
     header("Location: login.php");
     exit();
 }
 
 /* =========================
-   GET DATA FROM SERVICE
+   DATA GRID
 ========================= */
-$data = getKelurahanData($conn);
-$totalKelurahan = getTotalKelurahan($conn);
-$tahunGlobal = getTahunGlobal($conn);
+$query = "
+    SELECT w.id, w.kelurahan,
+           GROUP_CONCAT(m.tahun ORDER BY m.tahun DESC) as tahun_list
+    FROM wilayah w
+    LEFT JOIN monografi_tahun m ON w.id = m.wilayah_id
+    GROUP BY w.id
+    ORDER BY w.kelurahan ASC
+";
+$result = $conn->query($query);
 
-$summary = getSummaryDashboard($conn);
+/* =========================
+   TOTAL
+========================= */
+$totalKelurahan = $conn->query("SELECT COUNT(*) as total FROM wilayah")
+    ->fetch_assoc()['total'];
 
-$sudah_update = $summary['sudah'];
-$belum_update = $summary['belum'];
-$persentase = $summary['persen'];
-$tahun_target = $summary['tahun_target'];
+/* =========================
+   FILTER GLOBAL
+========================= */
+$tahunGlobal = [];
+$tq = $conn->query("SELECT DISTINCT tahun FROM monografi_tahun ORDER BY tahun DESC");
+while ($t = $tq->fetch_assoc()) {
+    $tahunGlobal[] = $t['tahun'];
+}
+
+/* =========================
+   SUMMARY
+========================= */
+$tahun_target = date('Y');
+
+$sudah_update = 0;
+$belum_update = 0;
+
+$qSummary = $conn->query("
+    SELECT w.id,
+           GROUP_CONCAT(m.tahun) as tahun_list
+    FROM wilayah w
+    LEFT JOIN monografi_tahun m ON w.id = m.wilayah_id
+    GROUP BY w.id
+");
+
+while ($r = $qSummary->fetch_assoc()) {
+
+    $tahunArr = $r['tahun_list']
+        ? explode(',', $r['tahun_list'])
+        : [];
+
+    if (in_array($tahun_target, $tahunArr)) {
+        $sudah_update++;
+    } else {
+        $belum_update++;
+    }
+}
+
+$total = $sudah_update + $belum_update;
+$persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
 ?>
 
 <!DOCTYPE html>
@@ -59,6 +105,7 @@ $tahun_target = $summary['tahun_target'];
             padding: 10px;
         }
 
+        /* progress color */
         .progress-bar.low {
             background-color: #dc3545;
         }
@@ -77,8 +124,8 @@ $tahun_target = $summary['tahun_target'];
 
     <div class="wrapper">
 
-        <?php include __DIR__ . '/../views/layout/header.php'; ?>
-        <?php include __DIR__ . '/../views/layout/sidebar.php'; ?>
+                <?php include __DIR__ . '/../views/layout/header.php'; ?>
+                <?php include __DIR__ . '/../views/layout/sidebar.php'; ?>
 
         <div class="content-wrapper">
 
@@ -141,9 +188,9 @@ $tahun_target = $summary['tahun_target'];
                         <div class="col-md-2">
                             <select id="globalTahun" class="form-control">
                                 <option value="">Semua Tahun</option>
-                                <?php foreach ($tahunGlobal as $t): ?>
+                                                    <?php foreach ($tahunGlobal as $t): ?>
                                     <option value="<?= $t ?>"><?= $t ?></option>
-                                <?php endforeach; ?>
+                                                    <?php endforeach; ?>
                             </select>
                         </div>
 
@@ -155,7 +202,7 @@ $tahun_target = $summary['tahun_target'];
                     <!-- ================= DATA ================= -->
                     <div id="gridContainer" class="grid-container">
 
-                        <?php foreach ($data as $row): ?>
+                                                <?php while ($row = $result->fetch_assoc()): ?>
                             <div class="card-wrapper">
 
                                 <div class="card shadow-sm">
@@ -163,22 +210,27 @@ $tahun_target = $summary['tahun_target'];
 
                                         <h6><?= htmlspecialchars($row['kelurahan']) ?></h6>
 
-                                        <select class="form-control form-control-sm tahun-select"
-                                            data-kelurahan="<?= htmlspecialchars($row['kelurahan']) ?>"
-                                            <?= empty($row['tahun_list']) ? 'disabled' : '' ?>>
+                                        <?php
+                                        $tahunList = $row['tahun_list']
+                                            ? explode(',', $row['tahun_list'])
+                                            : [];
+                                        ?>
 
-                                            <?php if (!empty($row['tahun_list'])): ?>
-                                                <?php foreach ($row['tahun_list'] as $t): ?>
+                                        <select class="form-control form-control-sm tahun-select"
+                                            data-kelurahan="<?= htmlspecialchars($row['kelurahan']) ?>" <?= empty($tahunList) ? 'disabled' : '' ?>>
+
+                                                                                        <?php if ($tahunList): ?>
+                                                                                            <?php foreach ($tahunList as $t): ?>
                                                     <option value="<?= $t ?>"><?= $t ?></option>
-                                                <?php endforeach; ?>
-                                            <?php else: ?>
+                                                                                            <?php endforeach; ?>
+                                                                                        <?php else: ?>
                                                 <option>Tidak ada data</option>
-                                            <?php endif; ?>
+                                                                                        <?php endif; ?>
 
                                         </select>
 
                                         <a href="#"
-                                            class="btn btn-sm btn-outline-primary btn-lihat <?= empty($row['tahun_list']) ? 'disabled' : '' ?>">
+                                            class="btn btn-sm btn-outline-primary btn-lihat <?= empty($tahunList) ? 'disabled' : '' ?>">
                                             <i class="fas fa-eye"></i> Lihat
                                         </a>
 
@@ -186,7 +238,7 @@ $tahun_target = $summary['tahun_target'];
                                 </div>
 
                             </div>
-                        <?php endforeach; ?>
+                                                <?php endwhile; ?>
 
                     </div>
 
@@ -195,11 +247,84 @@ $tahun_target = $summary['tahun_target'];
 
         </div>
 
-        <?php include __DIR__ . '/../views/layout/footer.php'; ?>
+                <?php include __DIR__ . '/../views/layout/footer.php'; ?>
 
     </div>
 
-    <script src="<?= asset('js/viewer.js') ?>"></script>
+    <script>
+        // 🔥 COUNT UP
+        document.querySelectorAll('.count').forEach(el => {
+            let target = +el.dataset.target;
+            let count = 0;
+            let inc = target / 50;
+            let update = () => {
+                if (count < target) {
+                    count += inc;
+                    el.innerText = Math.ceil(count);
+                    setTimeout(update, 20);
+                } else {
+                    el.innerText = target;
+                }
+            };
+            update();
+        });
+
+        // 🔥 PROGRESS
+        let progress = <?= $persentase ?>;
+        let bar = document.getElementById('progressBar');
+        let text = document.querySelector('.progress-text');
+
+        let i = 0;
+        function animate() {
+            if (i < progress) {
+                i++;
+                text.innerText = i + '%';
+                bar.style.width = i + '%';
+                setTimeout(animate, 15);
+            } else {
+                text.innerText = progress + '%';
+            }
+        }
+        animate();
+
+        // warna
+        if (progress < 50) bar.classList.add('low');
+        else if (progress < 80) bar.classList.add('medium');
+        else bar.classList.add('high');
+
+        // 🔍 SEARCH
+        document.getElementById('searchBox').addEventListener('keyup', function () {
+            let v = this.value.toLowerCase();
+            document.querySelectorAll('.card-wrapper').forEach(c => {
+                c.style.display = c.innerText.toLowerCase().includes(v) ? '' : 'none';
+            });
+        });
+
+        // 🔗 LINK
+        function updateLinks() {
+            document.querySelectorAll('.card').forEach(card => {
+                let s = card.querySelector('.tahun-select');
+                let b = card.querySelector('.btn-lihat');
+                if (s && b && !s.disabled) {
+                    b.href = `monograph.php?kelurahan=${encodeURIComponent(s.dataset.kelurahan)}&tahun=${s.value}`;
+                }
+            });
+        }
+        updateLinks();
+
+        // 🎛 FILTER
+        document.getElementById('globalTahun').addEventListener('change', function () {
+            let val = this.value;
+            document.querySelectorAll('.card-wrapper').forEach(w => {
+                let s = w.querySelector('.tahun-select');
+                if (!s || s.disabled) return;
+                let found = [...s.options].some(o => o.value === val);
+                w.style.display = (!val || found) ? '' : 'none';
+                if (val && found) s.value = val;
+            });
+            updateLinks();
+        });
+    </script>
 
 </body>
 
