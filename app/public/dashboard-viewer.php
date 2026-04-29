@@ -3,72 +3,23 @@ session_start();
 
 require_once __DIR__ . '/../config/conn.php';
 require_once __DIR__ . '/../middleware/auth.php';
+require_once __DIR__ . '/../services/DashboardService.php';
 
-// 🔐 hanya viewer
 if ($_SESSION['role'] !== 'viewer') {
     header("Location: login.php");
     exit();
 }
 
-/* =========================
-   DATA GRID
-========================= */
-$query = "
-    SELECT w.id, w.kelurahan,
-           GROUP_CONCAT(m.tahun ORDER BY m.tahun DESC) as tahun_list
-    FROM wilayah w
-    LEFT JOIN monografi_tahun m ON w.id = m.wilayah_id
-    GROUP BY w.id
-    ORDER BY w.kelurahan ASC
-";
-$result = $conn->query($query);
+$data = getKelurahanData($conn);
+$totalKelurahan = getTotalKelurahan($conn);
+$tahunGlobal = getTahunGlobal($conn);
 
-/* =========================
-   TOTAL
-========================= */
-$totalKelurahan = $conn->query("SELECT COUNT(*) as total FROM wilayah")
-    ->fetch_assoc()['total'];
+$summary = getSummaryDashboard($conn);
 
-/* =========================
-   FILTER GLOBAL
-========================= */
-$tahunGlobal = [];
-$tq = $conn->query("SELECT DISTINCT tahun FROM monografi_tahun ORDER BY tahun DESC");
-while ($t = $tq->fetch_assoc()) {
-    $tahunGlobal[] = $t['tahun'];
-}
-
-/* =========================
-   SUMMARY
-========================= */
-$tahun_target = date('Y');
-
-$sudah_update = 0;
-$belum_update = 0;
-
-$qSummary = $conn->query("
-    SELECT w.id,
-           GROUP_CONCAT(m.tahun) as tahun_list
-    FROM wilayah w
-    LEFT JOIN monografi_tahun m ON w.id = m.wilayah_id
-    GROUP BY w.id
-");
-
-while ($r = $qSummary->fetch_assoc()) {
-
-    $tahunArr = $r['tahun_list']
-        ? explode(',', $r['tahun_list'])
-        : [];
-
-    if (in_array($tahun_target, $tahunArr)) {
-        $sudah_update++;
-    } else {
-        $belum_update++;
-    }
-}
-
-$total = $sudah_update + $belum_update;
-$persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
+$sudah_update = $summary['sudah'];
+$belum_update = $summary['belum'];
+$persentase = $summary['persen'];
+$tahun_target = $summary['tahun_target'];
 ?>
 
 <!DOCTYPE html>
@@ -202,7 +153,7 @@ $persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
                     <!-- ================= DATA ================= -->
                     <div id="gridContainer" class="grid-container">
 
-                                                <?php while ($row = $result->fetch_assoc()): ?>
+                                                <?php foreach ($data as $row): ?>
                             <div class="card-wrapper">
 
                                 <div class="card shadow-sm">
@@ -210,11 +161,7 @@ $persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
 
                                         <h6><?= htmlspecialchars($row['kelurahan']) ?></h6>
 
-                                        <?php
-                                        $tahunList = $row['tahun_list']
-                                            ? explode(',', $row['tahun_list'])
-                                            : [];
-                                        ?>
+                                        <?php $tahunList = $row['tahun_list']; ?>
 
                                         <select class="form-control form-control-sm tahun-select"
                                             data-kelurahan="<?= htmlspecialchars($row['kelurahan']) ?>" <?= empty($tahunList) ? 'disabled' : '' ?>>
@@ -238,8 +185,7 @@ $persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
                                 </div>
 
                             </div>
-                                                <?php endwhile; ?>
-
+<?php endforeach; ?>
                     </div>
 
                 </div>
@@ -252,7 +198,7 @@ $persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
     </div>
 
     <script>
-        // 🔥 COUNT UP
+        // COUNT UP
         document.querySelectorAll('.count').forEach(el => {
             let target = +el.dataset.target;
             let count = 0;
@@ -269,7 +215,7 @@ $persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
             update();
         });
 
-        // 🔥 PROGRESS
+        // PROGRESS
         let progress = <?= $persentase ?>;
         let bar = document.getElementById('progressBar');
         let text = document.querySelector('.progress-text');
@@ -292,7 +238,7 @@ $persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
         else if (progress < 80) bar.classList.add('medium');
         else bar.classList.add('high');
 
-        // 🔍 SEARCH
+        // SEARCH
         document.getElementById('searchBox').addEventListener('keyup', function () {
             let v = this.value.toLowerCase();
             document.querySelectorAll('.card-wrapper').forEach(c => {
@@ -300,7 +246,7 @@ $persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
             });
         });
 
-        // 🔗 LINK
+        // LINK
         function updateLinks() {
             document.querySelectorAll('.card').forEach(card => {
                 let s = card.querySelector('.tahun-select');
@@ -312,7 +258,7 @@ $persentase = $total > 0 ? round(($sudah_update / $total) * 100) : 0;
         }
         updateLinks();
 
-        // 🎛 FILTER
+        // FILTER
         document.getElementById('globalTahun').addEventListener('change', function () {
             let val = this.value;
             document.querySelectorAll('.card-wrapper').forEach(w => {
