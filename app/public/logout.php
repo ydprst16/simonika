@@ -1,14 +1,13 @@
 <?php
 session_start();
 
-// Hapus semua variabel session
-$_SESSION = [];
+require_once __DIR__ . '/../config/config.php';
 
-// Destroy session
+// hapus session
+$_SESSION = [];
 session_unset();
 session_destroy();
 
-// Arahkan kembali ke halaman index
-header("Location: index.php");
+// redirect ke base URL
+header("Location: " . BASE_URL);
 exit();
-?>
